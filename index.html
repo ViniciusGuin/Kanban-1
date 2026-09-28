@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciador de Tarefas Kanban</title>
+
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%233b82f6' d='M0 96C0 60.7 28.7 32 64 32H448c35.3 0 64 28.7 64 64V416c0 35.3-28.7 64-64 64H64c-35.3 0-64-28.7-64-64V96zM64 96V416H160V96H64zm128 0V416H320V96H192zm160 0V416H448V96H352z'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="page-header">
+            <div>
+                <h1>Kanban Task Manager</h1>
+                <p>Organize suas tarefas em três colunas. Os dados ficam salvos automaticamente neste navegador.</p>
+            </div>
+            <button class="icon-btn" id="themeToggleBtn" type="button" aria-label="Alternar tema claro/escuro" title="Alternar tema">
+                <span data-icon="moon" data-size="18"></span>
+            </button>
+        </header>
+
+        <section class="panel" aria-label="Progresso geral">
+            <div class="progress-head">
+                <strong id="progressLabel">0% concluído</strong>
+                <span id="progressDetail">Nenhuma tarefa cadastrada</span>
+            </div>
+            <div class="progress-bar" id="progressBar" role="progressbar" aria-label="Progresso geral das tarefas" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                <span class="seg seg-done" id="segDone"></span>
+                <span class="seg seg-doing" id="segDoing"></span>
+            </div>
+            <div class="legend">
+                <span><i class="dot dot-done"></i>Concluídas: <strong id="statDone">0</strong></span>
+                <span><i class="dot dot-doing"></i>Em progresso: <strong id="statDoing">0</strong></span>
+                <span><i class="dot dot-todo"></i>A fazer: <strong id="statTodo">0</strong></span>
+                <span class="overdue-stat">Atrasadas: <strong id="statOverdue">0</strong></span>
+            </div>
+        </section>
+
+        <form class="panel task-form" id="taskForm" autocomplete="off">
+            <input class="field" type="text" id="taskInput" maxlength="120" placeholder="Digite uma nova tarefa" aria-label="Descrição da tarefa" required>
+            <select class="field" id="priorityInput" aria-label="Prioridade da tarefa">
+                <option value="baixa">Prioridade baixa</option>
+                <option value="media" selected>Prioridade média</option>
+                <option value="alta">Prioridade alta</option>
+            </select>
+            <input class="field" type="date" id="dueInput" aria-label="Prazo da tarefa">
+            <button class="btn btn-primary" type="submit">
+                <span data-icon="plus" data-size="16"></span>
+                Adicionar
+            </button>
+        </form>
+
+        <div class="toolbar">
+            <div class="search">
+                <span data-icon="search" data-size="16"></span>
+                <input class="field" type="search" id="searchInput" placeholder="Buscar tarefas" aria-label="Buscar tarefas">
+            </div>
+            <select class="field" id="filterPriority" aria-label="Filtrar por prioridade">
+                <option value="todas">Todas as prioridades</option>
+                <option value="alta">Somente alta</option>
+                <option value="media">Somente média</option>
+                <option value="baixa">Somente baixa</option>
+            </select>
+            <select class="field" id="sortSelect" aria-label="Ordenar tarefas">
+                <option value="manual">Ordem manual</option>
+                <option value="priority">Prioridade (alta primeiro)</option>
+                <option value="due">Prazo (mais próximo primeiro)</option>
+            </select>
+            <div class="toolbar-actions">
+                <button class="btn" type="button" id="clearDoneBtn">
+                    <span data-icon="trash" data-size="16"></span>
+                    Limpar concluídas
+                </button>
+                <button class="btn" type="button" id="exportBtn">
+                    <span data-icon="download" data-size="16"></span>
+                    Exportar
+                </button>
+                <button class="btn" type="button" id="importBtn">
+                    <span data-icon="upload" data-size="16"></span>
+                    Importar
+                </button>
+                <input type="file" id="importFile" accept="application/json,.json" hidden>
+            </div>
+        </div>
+
+        <main class="board">
+            <section class="column" data-status="todo" aria-labelledby="todoTitle">
+                <div class="column-title"><h2 id="todoTitle">A Fazer</h2><span class="count" id="todoCount">0</span></div>
+                <div class="task-list" id="todoList" data-status="todo"></div>
+            </section>
+            <section class="column" data-status="doing" aria-labelledby="doingTitle">
+                <div class="column-title"><h2 id="doingTitle">Em Progresso</h2><span class="count" id="doingCount">0</span></div>
+                <div class="task-list" id="doingList" data-status="doing"></div>
+            </section>
+            <section class="column" data-status="done" aria-labelledby="doneTitle">
+                <div class="column-title"><h2 id="doneTitle">Concluído</h2><span class="count" id="doneCount">0</span></div>
+                <div class="task-list" id="doneList" data-status="done"></div>
+            </section>
+        </main>
+
+        <p class="hint">Arraste os cartões entre as colunas (ou use as setas em telas de toque). Dê dois cliques no texto para renomear rapidamente ou use o lápis para abrir os detalhes.</p>
+    </div>
+
+    <!-- Painel de detalhes da tarefa -->
+    <dialog class="dialog" id="taskDialog" aria-labelledby="dialogTitle">
+        <form class="dialog-form" id="detailForm">
+            <h2 id="dialogTitle">Detalhes da tarefa</h2>
+
+            <label class="dialog-label">
+                <span>Título</span>
+                <input class="field" type="text" id="detailText" maxlength="120" required>
+            </label>
+
+            <div class="dialog-row">
+                <label class="dialog-label">
+                    <span>Prioridade</span>
+                    <select class="field" id="detailPriority">
+                        <option value="baixa">Baixa</option>
+                        <option value="media">Média</option>
+                        <option value="alta">Alta</option>
+                    </select>
+                </label>
+                <label class="dialog-label">
+                    <span>Prazo</span>
+                    <input class="field" type="date" id="detailDue">
+                </label>
+            </div>
+
+            <label class="dialog-label">
+                <span>Descrição</span>
+                <textarea class="field" id="detailNotes" maxlength="500" rows="3" placeholder="Anotações sobre a tarefa (opcional)"></textarea>
+            </label>
+
+            <fieldset class="checklist-box">
+                <legend>Checklist <span id="checklistProgress">Nenhum item</span></legend>
+                <div class="mini-progress" aria-hidden="true"><span id="checklistBar"></span></div>
+                <ul class="checklist" id="checklistList"></ul>
+                <div class="checklist-add">
+                    <input class="field" type="text" id="checklistInput" maxlength="100" placeholder="Novo item do checklist" aria-label="Novo item do checklist">
+                    <button class="btn" type="button" id="checklistAddBtn">Adicionar item</button>
+                </div>
+            </fieldset>
+
+            <div class="dialog-actions">
+                <button class="btn" type="button" id="dialogCancelBtn">Cancelar</button>
+                <button class="btn btn-primary" type="submit">Salvar alterações</button>
+            </div>
+        </form>
+    </dialog>
+
+    <div class="toast" id="toast" role="status" aria-live="polite" hidden>
+        <span id="toastMsg"></span>
+        <button type="button" id="toastUndo" hidden>Desfazer</button>
+    </div>
+
+    <script src="icons.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
